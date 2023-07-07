@@ -45,6 +45,36 @@ namespace PLCFormApp
 		
 		}
 
+		private void cmbValToPlcDataTypes_SelectedIndexChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void txtValToPLc_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void txtDataTypeValFromPlc_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void txtValFromPlc_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void txtPlcIp_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
+		private void txtServerPort_TextChanged(object sender, EventArgs e)
+		{
+
+		}
+
 		private void btnPlcConnect_Click(object sender, EventArgs e)
 		{
 			string ip = this.txtPlcIp.Text;
@@ -78,35 +108,7 @@ namespace PLCFormApp
 			txtLog.Text += "\n ("+ DateTime.Now.ToString() + ") Disconnected from " + ip;
 		}
 
-		private void cmbValToPlcDataTypes_SelectedIndexChanged(object sender, EventArgs e)
-		{
-
-		}
-
-		private void txtValToPLc_TextChanged(object sender, EventArgs e)
-		{
-
-		}
-
-		private void txtDataTypeValFromPlc_TextChanged(object sender, EventArgs e)
-		{
-
-		}
-
-		private void txtValFromPlc_TextChanged(object sender, EventArgs e)
-		{
-			
-		}
-
-		private void txtPlcIp_TextChanged(object sender, EventArgs e)
-		{
-
-		}
-
-		private void txtServerPort_TextChanged(object sender, EventArgs e)
-		{
-
-		}
+		
 
 		private void btnTcpIpConnect_Click(object sender, EventArgs e)
 		{
@@ -200,7 +202,7 @@ namespace PLCFormApp
 		{
 
 			string responseData = tcpGetData();
-			plcSendData(responseData);
+			//plcSendData(responseData);
 
 			writeLog("Received from TCP/IP: " + responseData);
 		}
@@ -253,14 +255,16 @@ namespace PLCFormApp
 
 		public void tcpSendData(string data)
 		{
-			byte[] buffer = Encoding.ASCII.GetBytes(data);
+			data = createTcpMsg(data);
+			byte[] buffer = Encoding.ASCII.GetBytes(data+".");
 			this.stream.Write(buffer, 0, buffer.Length);
 		}
 
 		public string tcpGetData(int offset)
 		{
 			byte[] buffer = new byte[1024];
-			int bytesRead = this.stream.Read(buffer, offset, buffer.Length);
+			int bytesRead = stream.Read(buffer, offset, buffer.Length);
+
 			string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 			return response;
 		}
@@ -268,7 +272,7 @@ namespace PLCFormApp
 		public string tcpGetData()
 		{
 			byte[] buffer = new byte[1024];
-			int bytesRead = this.stream.Read(buffer, 0, buffer.Length);
+			int bytesRead = stream.Read(buffer, 0, buffer.Length);
 			string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 
 			return response;
@@ -293,7 +297,18 @@ namespace PLCFormApp
 			return S7.GetIntAt(rBuffer, 0).ToString();
 		}
 
-		public void sendFromTcpToPlc()
+		public string createTcpMsg(string message)
+		{
+			byte state = 1;
+			byte type = 5;
+			string reqId = "1x#@?5451afBq";
+			string resId = "zU14x@ceQ";
+			DateTime date = DateTime.Now;
+			TimeSpan span = new TimeSpan(date.Ticks);
+			return span.TotalSeconds.ToString() + ";" + type + ";" + state + ";" + reqId + ";" + resId + ";" + message;
+		}
+
+		/*public void sendFromTcpToPlc()
 		{
 			byte[] buffer = new byte[1024];
 			int bytesRead = stream.Read(buffer, 0, buffer.Length);
@@ -308,6 +323,6 @@ namespace PLCFormApp
 		public void sendFromPlcToTcp()
 		{
 
-		}
+		}*/
 	}
 }
