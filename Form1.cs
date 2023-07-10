@@ -11,6 +11,7 @@ using Sharp7;
 using System.Text.RegularExpressions;
 using System.Net;
 using System.Net.Sockets;
+using EncryptString;
 
 
 namespace PLCFormApp
@@ -77,7 +78,7 @@ namespace PLCFormApp
 
 		private void btnPlcConnect_Click(object sender, EventArgs e)
 		{
-			string ip = this.txtPlcIp.Text;
+			string ip = txtPlcIp.Text;
 
 			if(ip != "" && ip == this.plcIp)
 			{
@@ -85,7 +86,7 @@ namespace PLCFormApp
 				btnPlcDisconnect.Enabled = true;
 				txtPlcIp.Enabled = false;
 
-				int result = client.ConnectTo(this.txtPlcIp.Text, 0, 1);
+				int result = client.ConnectTo(txtPlcIp.Text, 0, 1);
 				if (result != 0) lblPlcState.Text = "Něco se pokazilo: " + result;
 				else lblPlcState.Text = "Připojení bylo úspěšné";
 				txtLog.Text += "\n ("+ DateTime.Now.ToString()+ ") Connected to " + ip;
@@ -101,7 +102,7 @@ namespace PLCFormApp
 
 			client.Disconnect();
 
-			string ip = this.txtPlcIp.Text;
+			string ip = txtPlcIp.Text;
 
 			lblPlcState.Text = "Úspěšně odpojeno ("+ip+")";
 
@@ -124,8 +125,8 @@ namespace PLCFormApp
 				{
 					if(ip == clientIp && port == tcpPort.ToString())
 					{
-						this.btnTcpIpConnect.Enabled = false;
-						this.btnTcpIpDisconnect.Enabled = true;
+						btnTcpIpConnect.Enabled = false;
+						btnTcpIpDisconnect.Enabled = true;
 
 						connectTcpClient(ip, int.Parse(port));
 
@@ -175,7 +176,7 @@ namespace PLCFormApp
 		{
 			byte[] rBuffer = new byte[12];
 
-			int result = this.client.DBRead(1, 0, 2, rBuffer);
+			int result = client.DBRead(1, 0, 2, rBuffer);
 			var readValue = S7.GetIntAt(rBuffer, 0);
 
 			txtValFromPlc.Text = readValue.ToString();
@@ -195,7 +196,7 @@ namespace PLCFormApp
 		private void btnSendValToServer_Click(object sender, EventArgs e)
 		{
 			tcpSendData(txtValToServer.Text);
-			writeLog("Sent to TCP / IP: " + this.txtValToServer.Text);
+			writeLog("Sent to TCP / IP: " + txtValToServer.Text);
 		}
 
 		private void btnGetValFromServer_Click(object sender, EventArgs e)
@@ -209,17 +210,17 @@ namespace PLCFormApp
 
 		private void btnTcpIpDisconnect_Click(object sender, EventArgs e)
 		{
-			this.btnTcpIpConnect.Enabled = true;
-			this.btnTcpIpDisconnect.Enabled = false;
+			btnTcpIpConnect.Enabled = true;
+			btnTcpIpDisconnect.Enabled = false;
 
-			this.disconnectTcpClient();
+			disconnectTcpClient();
 		}
 
 		private void connectTcpClient(string ip, int port)
 		{
-			this.tcpClient = new TcpClient(ip, port); 
+			tcpClient = new TcpClient(ip, port); 
 
-			this.stream = this.tcpClient.GetStream();
+			stream = tcpClient.GetStream();
 
 			writeLog("Connected to TCP / IP");
 		}
@@ -257,15 +258,15 @@ namespace PLCFormApp
 		{
 			data = createTcpMsg(data);
 			byte[] buffer = Encoding.ASCII.GetBytes(data+".");
-			this.stream.Write(buffer, 0, buffer.Length);
+			stream.Write(buffer, 0, buffer.Length);
 		}
 
 		public string tcpGetData(int offset)
 		{
 			byte[] buffer = new byte[1024];
 			int bytesRead = stream.Read(buffer, offset, buffer.Length);
-
 			string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+
 			return response;
 		}
 
@@ -283,7 +284,6 @@ namespace PLCFormApp
 			byte[] wBuffer = new byte[12];
 			byte writeValue = byte.Parse(data);
 			S7.SetIntAt(wBuffer, 0, writeValue);
-
 			int result = client.DBWrite(1, 0, 2, wBuffer);
 
 			return result;
@@ -292,20 +292,49 @@ namespace PLCFormApp
 		public string plcGetData()
 		{
 			byte[] rBuffer = new byte[12];
+			int result = client.DBRead(1, 0, 2, rBuffer);
 
-			int result = this.client.DBRead(1, 0, 2, rBuffer);
 			return S7.GetIntAt(rBuffer, 0).ToString();
 		}
 
 		public string createTcpMsg(string message)
 		{
+			byte size = 100;
+			byte speed = 2;
+			byte round = 1;
+			byte mode = 1;
 			byte state = 1;
-			byte type = 5;
-			string reqId = "1x#@?5451afBq";
-			string resId = "zU14x@ceQ";
+			byte side = 1;
+
+			string reqId = "x#@?5451afBq";
+			string resId = "zU14x@ceQdR#";
+
+			/*string reqId = StringCipher.Encrypt(RandomString(8), "12345");
+			string resId = StringCipher.Encrypt(RandomString(8), "54321");*/
+
 			DateTime date = DateTime.Now;
 			TimeSpan span = new TimeSpan(date.Ticks);
-			return span.TotalSeconds.ToString() + ";" + type + ";" + state + ";" + reqId + ";" + resId + ";" + message;
+
+			return span.TotalSeconds.ToString() + ";" + reqId + ";" + resId + ";" + state + ";" + side + ";" + size + ";" + round + ";" + mode + ";" +  speed;
+		}
+
+		public string createTcpMsg(byte state, byte side, byte size, bool round, byte mode, byte speed)
+		{
+			string reqId = "x#@?5451afBq";
+			string resId = "zU14x@ceQdR#";
+
+			/*string reqId = StringCipher.Encrypt(RandomString(8), "12345");
+			string resId = StringCipher.Encrypt(RandomString(8), "54321");*/
+
+			return new TimeSpan(DateTime.Now.Ticks).TotalSeconds.ToString() + ";" + state + ";" + reqId + ";" + resId + ";" + state + ";" + side + ";" + size + ";" + round + ";" + mode + ";" + speed;
+		}
+
+		public static string RandomString(int length)
+		{
+			Random random = new Random();
+			const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+			return new string(Enumerable.Repeat(chars, length)
+				.Select(s => s[random.Next(s.Length)]).ToArray());
 		}
 
 		/*public void sendFromTcpToPlc()
