@@ -12,6 +12,8 @@ using System.Text.RegularExpressions;
 using System.Net;
 using System.Net.Sockets;
 using EncryptString;
+using System.IO;
+using System.Threading;
 
 
 namespace PLCFormApp
@@ -22,9 +24,13 @@ namespace PLCFormApp
 		private string clientIp = "127.0.0.1";
 		private int tcpPort = 2000;
 
-		public S7Client client = new S7Client();
-		public TcpClient tcpClient;
-		public NetworkStream stream;
+		private S7Client client = new S7Client();
+
+		private TcpClient tcpClient;
+		private TcpClient _tcpClient;
+		private NetworkStream stream;
+		private NetworkStream _stream;
+		private bool _isConnected = false;
 
 		public Form1()
 		{
@@ -33,8 +39,11 @@ namespace PLCFormApp
 
 		private void Form1_Load(object sender, EventArgs e)
 		{
+			
 
+				
 		}
+	
 
 		private void lblPlcIp_Click(object sender, EventArgs e)
 		{
@@ -111,7 +120,7 @@ namespace PLCFormApp
 
 		
 
-		private void btnTcpIpConnect_Click(object sender, EventArgs e)
+		private async void btnTcpIpConnect_Click(object sender, EventArgs e)
 		{
 			string ip = txtClientIp.Text;
 			string port = txtClientPort.Text;
@@ -128,7 +137,30 @@ namespace PLCFormApp
 						btnTcpIpConnect.Enabled = false;
 						btnTcpIpDisconnect.Enabled = true;
 
-						connectTcpClient(ip, int.Parse(port));
+						//connectTcpClient(ip, int.Parse(port));
+						try
+						{
+							await connectAsyncTcpClient(ip, int.Parse(port));
+							_isConnected = true;
+
+							while (_isConnected)
+							{
+								string response = await asyncTcpGetData();
+
+								writeLog(response);
+
+								if(txtValToServer.Text != "" || txtValToServer.Text != null) 
+								{
+									await asyncTcpSendData(txtValToServer.Text);
+								}
+
+							}
+							
+						}
+						catch (Exception exception)
+						{
+							writeLog("Connection rejected due to: "+exception.Message);
+						}
 
 						writeLog("Connected to server: " + ip + " on " + port);
 					}
@@ -196,6 +228,7 @@ namespace PLCFormApp
 		private void btnSendValToServer_Click(object sender, EventArgs e)
 		{
 			tcpSendData(txtValToServer.Text);
+			//await asyncTcpSendData(txtValToServer.Text);
 			writeLog("Sent to TCP / IP: " + txtValToServer.Text);
 		}
 
@@ -203,6 +236,8 @@ namespace PLCFormApp
 		{
 
 			string responseData = tcpGetData();
+			//string responseData = await asyncTcpGetData();
+
 			//plcSendData(responseData);
 
 			writeLog("Received from TCP/IP: " + responseData);
@@ -223,12 +258,37 @@ namespace PLCFormApp
 			stream = tcpClient.GetStream();
 
 			writeLog("Connected to TCP / IP");
+			//disconnectTcpClient();
+		}
+
+		private async Task connectAsyncTcpClient(string ip, int port)
+		{
+			_tcpClient = new TcpClient();
+			await _tcpClient.ConnectAsync(ip, port);
+			_stream = _tcpClient.GetStream();
+
+		}
+
+		private async Task asyncTcpSendData(string data)
+		{
+			data = createTcpMsg(data);
+			byte[] buffer = Encoding.ASCII.GetBytes(data + ".");
+			await _stream.WriteAsync(buffer, 0, buffer.Length);
+		}
+
+		private async Task<string> asyncTcpGetData()
+		{
+			byte[] buffer = new byte[1024];
+			int bytesRead = await _stream.ReadAsync(buffer, 0, buffer.Length);
+			string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+
+			return response;
 		}
 
 		private void disconnectTcpClient()
 		{
-			tcpClient.Close();
-			stream.Close();
+			_tcpClient.Close();
+			_stream.Close();
 
 			writeLog("Disconnected from TCP/IP");
 		}
@@ -315,6 +375,8 @@ namespace PLCFormApp
 			DateTime date = DateTime.Now;
 			TimeSpan span = new TimeSpan(date.Ticks);
 
+			speed = message.Length != 0 ? byte.Parse(message) : speed;
+
 			return span.TotalSeconds.ToString() + ";" + reqId + ";" + resId + ";" + state + ";" + side + ";" + size + ";" + round + ";" + mode + ";" +  speed;
 		}
 
@@ -332,9 +394,8 @@ namespace PLCFormApp
 		public static string RandomString(int length)
 		{
 			Random random = new Random();
-			const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-			return new string(Enumerable.Repeat(chars, length)
-				.Select(s => s[random.Next(s.Length)]).ToArray());
+			const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			return new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
 		}
 
 		/*public void sendFromTcpToPlc()

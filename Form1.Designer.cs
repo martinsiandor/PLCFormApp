@@ -208,7 +208,7 @@ namespace PLCFormApp
 			// txtLog
 			// 
 			this.txtLog.BackColor = System.Drawing.SystemColors.InactiveCaptionText;
-			this.txtLog.Font = new System.Drawing.Font("Comic Sans MS", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+			this.txtLog.Font = new System.Drawing.Font("Calibri Light", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
 			this.txtLog.ForeColor = System.Drawing.SystemColors.Window;
 			this.txtLog.Location = new System.Drawing.Point(31, 612);
 			this.txtLog.Name = "txtLog";
